@@ -1,60 +1,112 @@
-const noteModel = require('../models/Notes.js');
-//TODO - Create a new Note
-//http://mongoosejs.com/docs/api.html#document_Document-save
-app.post('/notes', (req, res) => {
+const express = require('express');
+const router = express.Router();
+const noteModel = require('../models/NotesModel.js');
+const middleware = require('../middleware.js');
+
+// Create a new Note
+router.post('/notes', middleware.validateNote, (req, res) => {
     // Validate request
-    if(!req.body.content) {
+    if (!req.body.noteTitle || !req.body.noteDescription || !req.body.priority) {
         return res.status(400).send({
-            message: "Note content can not be empty"
+            message: "Note title, description, and priority are required"
         });
     }
-    //TODO - Write your code here to save the note
+
+    // Create a new note using the Note model
+    const newNote = new noteModel({
+        noteTitle: req.body.noteTitle,
+        noteDescription: req.body.noteDescription,
+        priority: req.body.priority
+    });
+
+    // Save the new note to the database
+    newNote.save()
+        .then(note => {
+            res.send(note);
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: err.message || "Some error occurred while creating the Note."
+            });
+        });
 });
 
-//TODO - Retrieve all Notes
-//http://mongoosejs.com/docs/api.html#find_find
-app.get('/notes', (req, res) => {
-    // Validate request
-    if(!req.body.content) {
-        return res.status(400).send({
-            message: "Note content can not be empty"
+// Retrieve all Notes
+router.get('/notes', middleware.validateNote, (req, res) => {
+    // Fetch all notes from the database
+    noteModel.find()
+        .then(notes => {
+            res.send(notes);
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: err.message || "Some error occurred while retrieving notes."
+            });
         });
-    }
-    //TODO - Write your code here to returns all note
 });
 
-//TODO - Retrieve a single Note with noteId
-//http://mongoosejs.com/docs/api.html#findbyid_findById
-app.get('/notes/:noteId', (req, res) => {
-    // Validate request
-    if(!req.body.content) {
-        return res.status(400).send({
-            message: "Note content can not be empty"
+// Retrieve a single Note with noteId
+router.get('/notes/:noteId', middleware.validateNote, (req, res) => {
+    const noteId = req.params.noteId;
+    // Find a note by its unique ID
+    noteModel.findById(noteId)
+        .then(note => {
+            if (!note) {
+                return res.status(404).send({
+                    message: "Note not found with id " + noteId
+                });
+            }
+            res.send(note);
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: "Error retrieving note with id " + noteId
+            });
         });
-    }
-    //TODO - Write your code here to return onlt one note using noteid
 });
 
-//TODO - Update a Note with noteId
-//http://mongoosejs.com/docs/api.html#findbyidandupdate_findByIdAndUpdate
-app.put('/notes/:noteId', (req, res) => {
-    // Validate request
-    if(!req.body.content) {
-        return res.status(400).send({
-            message: "Note content can not be empty"
+// Update a Note with noteId
+router.put('/notes/:noteId', middleware.validateNote, (req, res) => {
+    const noteId = req.params.noteId;
+    // Find and update the note by its ID
+    noteModel.findByIdAndUpdate(noteId, {
+        noteTitle: req.body.noteTitle,
+        noteDescription: req.body.noteDescription,
+        priority: req.body.priority
+    }, { new: true })
+        .then(note => {
+            if (!note) {
+                return res.status(404).send({
+                    message: "Note not found with id " + noteId
+                });
+            }
+            res.send(note);
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: "Error updating note with id " + noteId
+            });
         });
-    }
-    //TODO - Write your code here to update the note using noteid
 });
 
-//TODO - Delete a Note with noteId
-//http://mongoosejs.com/docs/api.html#findbyidandremove_findByIdAndRemove
-app.delete('/notes/:noteId', (req, res) => {
-    // Validate request
-    if(!req.body.content) {
-        return res.status(400).send({
-            message: "Note content can not be empty"
+// Delete a Note with noteId
+router.delete('/notes/:noteId', middleware.validateNote, (req, res) => {
+    const noteId = req.params.noteId;
+    // Find and remove the note by its ID
+    noteModel.findByIdAndRemove(noteId)
+        .then(note => {
+            if (!note) {
+                return res.status(404).send({
+                    message: "Note not found with id " + noteId
+                });
+            }
+            res.send({ message: "Note deleted successfully!" });
+        })
+        .catch(err => {
+            res.status(500).send({
+                message: "Could not delete note with id " + noteId
+            });
         });
-    }
-    //TODO - Write your code here to delete the note using noteid
 });
+
+module.exports = router;
